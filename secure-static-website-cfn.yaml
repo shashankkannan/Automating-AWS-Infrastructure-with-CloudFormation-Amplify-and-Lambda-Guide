@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  # S3 Bucket for Static Website Hosting
+  MyS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "my-unique-bucket-name-${AWS::Region}-${AWS::AccountId}" # Replace with a globally unique name
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+
+  # CloudFront Origin Access Identity (OAI) - IMPORTANT for Security
+  MyCloudFrontOAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      Comment: "OAI for my static website"
+
+  # S3 Bucket Policy to restrict access to CloudFront
+  MyS3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MyS3Bucket
+      PolicyDocument:
+        Statement:
+          - Action: "s3:GetObject"
+            Effect: "Allow"
+            Principal:
+              CanonicalUser: !GetAtt MyCloudFrontOAI.S3CanonicalUserId
+            Resource: !Sub "arn:aws:s3:::${MyS3Bucket}/*"
+
+  # CloudFront Distribution
+  MyCloudFront:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Origins:
+          - DomainName: !GetAtt MyS3Bucket.WebsiteURL
+            Id: S3Origin
+            S3OriginConfig:
+              OriginAccessIdentity: !Sub "origin-access-identity/cloudfront/${MyCloudFrontOAI.Id}" # Use the OAI here!
+        Enabled: 'true'
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          PriceClass: PriceClass_100
+          DefaultRootObject: index.html
+        Aliases:  # Add your custom domain here
+          - www.yourdomain.com  # Replace with your domain
+
+  # Route 53 DNS Record
+  MyRoute53Record:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      HostedZoneName: "yourdomain.com." # Replace with your domain
+      Name: "www.yourdomain.com." # Replace with your subdomain (or leave blank for the apex domain)
+      Type: A
+      AliasTarget:
+        DNSName: !GetAtt MyCloudFront.DomainName
+        HostedZoneId: Z2FDTNDATAQYW2 # CloudFront Hosted Zone ID - DO NOT CHANGE
+
+Outputs:
+  S3BucketURL:
+    Value: !GetAtt MyS3Bucket.WebsiteURL
+    Description: "URL of the static website hosted on S3"
+  CloudFrontURL:
+    Value: !GetAtt MyCloudFront.DomainName
+    Description: "CloudFront Distribution URL"
