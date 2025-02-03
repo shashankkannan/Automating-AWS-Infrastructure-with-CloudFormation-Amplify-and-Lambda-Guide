@@ -1,0 +1,157 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  MyQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: MyOrderQueue
+
+  ProcessOrderLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: process-order-function.zip
+      Environment:
+        Variables:
+          QUEUE_URL: !Ref MyQueue
+
+  SendNotificationLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: send-notification-function.zip
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref OrderNotificationTopic
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: LambdaBasicExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow # CloudWatch Logs
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Effect: Allow # SQS
+                Action:
+                  - sqs:SendMessage
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt MyQueue.Arn
+              - Effect: Allow # SNS
+                Action:
+                  - sns:Publish
+                Resource: !Ref OrderNotificationTopic
+
+  OrderNotificationTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: OrderNotifications
+
+  MyStepFunction:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      DefinitionString: !Sub |
+        {
+          "Comment": "Order processing state machine",
+          "StartAt": "ReceiveOrder",
+          "States": {
+            "ReceiveOrder": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::sqs:receiveMessage.sync",
+              "Parameters": {
+                "QueueUrl": "${MyQueue}",
+                "MaxNumberOfMessages": 1,
+                "VisibilityTimeout": 30
+              },
+              "ResultPath": "$.orderData",
+              "Next": "ProcessOrder"
+            },
+            "ProcessOrder": {
+              "Type": "Task",
+              "Resource": !GetAtt ProcessOrderLambda.Arn,
+              "InputPath": "$.orderData.Messages[0].Body",
+              "ResultPath": "$.processingResult",
+              "Next": "SendNotification"
+            },
+            "SendNotification": {
+              "Type": "Task",
+              "Resource": !GetAtt SendNotificationLambda.Arn,
+              "InputPath": "$.processingResult",
+              "End": true"
+            }
+          }
+        }
+      RoleArn: !GetAtt StepFunctionRole.Arn
+
+  StepFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - states.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: StepFunctionExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow # SQS, Lambda, and SNS permissions
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                  - lambda:InvokeFunction
+                  - sns:Publish
+                Resource:
+                  - !GetAtt MyQueue.Arn
+                  - !GetAtt ProcessOrderLambda.Arn
+                  - !GetAtt SendNotificationLambda.Arn
+                  - !Ref OrderNotificationTopic
+
+  LambdaCodeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "my-lambda-code-bucket-${AWS::AccountId}-${AWS::Region}"
+      AccessControl: Private
+
+Outputs:
+  QueueURL:
+    Value: !GetAtt MyQueue.QueueUrl
+    Description: URL of the SQS queue
+
+  StepFunctionArn:
+    Value: !GetAtt MyStepFunction.Arn
+    Description: ARN of the Step Function state machine
+
+  SNSTopicArn:
+    Value: !Ref OrderNotificationTopic
+    Description: ARN of the SNS Topic
