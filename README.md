@@ -1,5 +1,16 @@
 # Automating-AWS-Infrastructure-with-CloudFormation-Amplify-and-Lambda-Guide
 
+1.  **Prerequisites:**
+      *   An AWS account.
+      *   A domain name registered with Route 53 or another DNS provider.
+      *   Basic familiarity with AWS CloudFormation.
+  
+2.   **Clone the Repository:**
+    ```bash
+    git clone [https://github.com/shashankkannan/Automating-AWS-Infrastructure-with-CloudFormation-Amplify-and-Lambda-Guide.git](https://www.google.com/search?q=https://github.com/shashankkannan/Automating-AWS-Infrastructure-with-CloudFormation-Amplify-and-Lambda-Guide.git)
+    cd Automating-AWS-Infrastructure-with-CloudFormation-Amplify-and-Lambda-Guide
+    ```
+
 ## **A. secure-static-website-cfn.yaml**
   
   This template automates the creation and configuration of the following AWS resources:
