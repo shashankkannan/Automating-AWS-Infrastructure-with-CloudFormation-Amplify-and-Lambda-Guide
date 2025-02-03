@@ -62,7 +62,7 @@
 
 **2. serverless-api.yaml**
   
-    This repository provides a CloudFormation template (`serverless-api.yaml`) for deploying a serverless API using AWS Lambda and API Gateway.
+    This CloudFormation template (`serverless-api.yaml`) for deploying a serverless API using AWS Lambda and API Gateway.
   
   ## Overview
   
@@ -150,4 +150,120 @@
   *   **Environment Variables:** The template shows how to use environment variables for your Lambda function's configuration.  This is a best practice.
   *   **CORS:** If your frontend is on a different domain, you'll need to configure CORS in API Gateway.
   *   **Resource ARNs:** The IAM policy for CloudWatch Logs uses a wildcard (`*`) for resources.  For production, it's best practice to use more specific ARNs to restrict permissions.  The same applies to other permissions your Lambda function might need.
+
+3. order-processing.yaml
+   
+  This CloudFormation template (`order-processing.yaml`) to set up an order processing workflow using Amazon SQS, AWS Lambda, and Amazon SNS.
+  
+  ## Overview
+  
+  This template creates the following AWS resources:
+  
+  *   **SQS Queue:** Stores incoming order messages.
+  *   **Lambda Functions:**
+      *   `ProcessOrderLambda`: Processes order data.
+      *   `SendNotificationLambda`: Sends notifications via SNS.
+  *   **IAM Roles:** IAM roles for Lambda and Step Functions with necessary permissions.
+  *   **SNS Topic:** For sending notifications.
+  *   **Step Function State Machine:** Orchestrates the workflow: receives from SQS, processes with Lambda, notifies via SNS.
+  *   **S3 Bucket:** Stores Lambda function code.
+  
+  ## Getting Started
+  
+  1.  **Prerequisites:**
+      *   AWS account.
+      *   AWS CLI installed and configured.
+      *   Familiarity with CloudFormation, SQS, Lambda, SNS, Step Functions.
+  
+  2.  **Clone Repository:**
+      ```bash
+      git clone [your-repo-url]
+      cd your-repo-directory
+      ```
+  
+  3.  **Prepare Lambda Code (CRUCIAL):**
+  
+      *   **`process-order-function.zip` (`index.js`):**
+  
+          ```javascript
+          exports.handler = async (event) => {
+              const orderData = JSON.parse(event); // Parse order data from SQS message
+              // Process the order (e.g., database update)
+              const processingResult = {
+                  orderId: orderData.orderId,
+                  status: "Processed",
+              };
+              return processingResult;
+          };
+          ```
+  
+      *   **`send-notification-function.zip` (`index.js`):**
+  
+          ```javascript
+          const AWS = require('aws-sdk');
+          const sns = new AWS.SNS();
+  
+          exports.handler = async (event) => {
+              const processingResult = event;
+              const params = {
+                  Message: JSON.stringify(processingResult),
+                  TopicArn: process.env.SNS_TOPIC_ARN, // From environment variable
+              };
+  
+              try {
+                  const data = await sns.publish(params).promise();
+                  console.log("SNS message sent:", data);
+                  return { message: "Notification sent" };
+              } catch (err) {
+                  console.error("Error sending SNS message:", err);
+                  throw err;
+              }
+          };
+          ```
+  
+      *   **Zip:**
+          ```bash
+          zip process-order-function.zip index.js
+          zip send-notification-function.zip index.js
+          ```
+  
+  4.  **Create S3 Bucket & Upload (or use existing):**
+  
+      *   Create a *private* S3 bucket (e.g., `my-lambda-code-bucket-[your-id]-[region]`).  It's *highly* recommended to do this manually *before* deploying the template. This gives you more control over the bucket name.
+      *   Upload `process-order-function.zip` and `send-notification-function.zip` to the bucket.
+  
+  5.  **Deploy CloudFormation Template:**
+  
+      *   Open `order-processing.yaml`.
+      *   **Important:** If you created the S3 bucket *manually* in the previous step, you *must* update the `LambdaCodeBucket` resource's `BucketName` property with your bucket's name.  If you skip this step, the template will create a bucket for you, but you'll then have to find its name in the CloudFormation outputs and upload the zip files manually.
+      *   **CLI (Recommended):**
+          ```bash
+          aws cloudformation create-stack --stack-name MyOrderProcessingStack \
+              --template-body file://order-processing.yaml \
+              --capabilities CAPABILITY_IAM  # CRUCIAL for IAM resources
+        ```
+    *   **Console:** Upload the template and acknowledge IAM capabilities.
+
+  6.  **Send a Test Message to the SQS Queue:**
+  
+      *   After the stack creation is complete, you can send a message to the SQS queue to trigger the workflow.  You can do this through the AWS console, AWS CLI, or SDKs. Example using the AWS CLI:
+  
+          ```bash
+          aws sqs send-message --queue-url [QUEUE_URL] --message-body '{"orderId": "12345", "item": "Product A", "quantity": 2}'
+          ```
+          Replace `[QUEUE_URL]` with the actual URL of your SQS queue (you can find this in the CloudFormation stack's Outputs). The message body is a JSON string representing the order data.
+  
+  7.  **Monitor the Workflow:**
+  
+      *   You can monitor the execution of your Step Function state machine in the AWS Step Functions console.  You can see the progress of each step, the input and output data, and any errors that may have occurred.  You can also monitor the SQS queue to see the messages being received and processed.  Check CloudWatch Logs for your Lambda functions for any errors.
+  
+  ## Important Considerations
+  
+  *   **Error Handling:** The provided Lambda functions have basic error handling.  For production, implement more robust error handling and logging.  The `send-notification-function` example now re-throws errors so that Step Functions knows the notification failed.
+  *   **Idempotency:**  Consider how to handle duplicate messages in your `ProcessOrderLambda` function to ensure that the same order is not processed multiple times.  This is important for real-world applications.
+  *   **Visibility Timeout:** The `VisibilityTimeout` in the `ReceiveOrder` state is set to 30 seconds.  Adjust this value based on how long your `ProcessOrderLambda` function is expected to take.  The visibility timeout prevents other consumers from processing the same message while it's being processed.
+  *   **Dead-Letter Queue (DLQ):**  It's highly recommended to configure a Dead-Letter Queue (DLQ) for your SQS queue.  A DLQ is a separate queue where messages that fail to be processed are moved.  This allows you to investigate and retry failed messages.  You can add a `RedrivePolicy` to the `MyQueue` resource in the CloudFormation template to configure a DLQ.
+  *   **Batching:** For higher throughput, you can configure your Step Function to receive messages from SQS in batches.  This reduces the number of API calls to SQS.
+  *   **Security:**  Ensure that your IAM roles and policies have the least privilege necessary.  Avoid using wildcards (`*`) for resources unless absolutely necessary.
+  *   **Testing:** Test your workflow thoroughly by sending various types of messages to the SQS queue and verifying that the orders are processed correctly and notifications are sent.
   
