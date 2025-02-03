@@ -1,6 +1,7 @@
 # Automating-AWS-Infrastructure-with-CloudFormation-Amplify-and-Lambda-Guide
 
 **1. secure-static-website-cfn.yaml**
+  
   This template automates the creation and configuration of the following AWS resources:
   
   *   **S3 Bucket:**  Stores your website's files (HTML, CSS, JavaScript, images, etc.).  The bucket is configured for static website hosting.  A globally unique name is generated for the bucket.
