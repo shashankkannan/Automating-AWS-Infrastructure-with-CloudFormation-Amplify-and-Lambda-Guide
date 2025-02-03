@@ -1,0 +1,76 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  MyLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn  # Use the role defined below
+      FunctionName: my-serverless-api
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: code/my-function.zip
+      Environment: # Good practice: use environment variables
+        Variables:
+          MY_VARIABLE: "some value" # Example
+
+  LambdaExecutionRole: # Define the role in the template
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies: # Attach managed policy for CloudWatch Logs
+        - PolicyName: LambdaBasicExecutionPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*  # More specific resource ARNs are best
+
+  MyApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: MyAPI
+      Description: A simple API for my app
+      FailOnWarnings: 'true'
+
+  MyApiResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref MyApiGateway
+      ParentId: !GetAtt MyApiGateway.RootResourceId
+      PathPart: my-resource
+
+  MyApiMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE  # VERY IMPORTANT: Change this for production!
+      HttpMethod: GET
+      ResourceId: !Ref MyApiResource
+      RestApiId: !Ref MyApiGateway
+      Integration:
+        IntegrationHttpMethod: POST # Often POST for Lambda, even if method is GET
+        Type: AWS_PROXY
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MyLambdaFunction.Arn}/invocations
+
+  LambdaCodeBucket: # Define the S3 bucket for Lambda code
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "my-lambda-code-bucket-${AWS::AccountId}-${AWS::Region}" # Unique name
+      AccessControl: Private # Important: Keep the bucket private
+
+Outputs:
+  ApiEndpoint:
+    Value: !Sub https://${MyApiGateway.Ref}.execute-api.${AWS::Region}.amazonaws.com/my-resource
+    Description: "API Gateway Endpoint"
