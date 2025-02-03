@@ -256,3 +256,80 @@
   *   **Security:**  Ensure that your IAM roles and policies have the least privilege necessary.  Avoid using wildcards (`*`) for resources unless absolutely necessary.
   *   **Testing:** Test your workflow thoroughly by sending various types of messages to the SQS queue and verifying that the orders are processed correctly and notifications are sent.
   
+4. cognito-amplify-auth.yaml
+
+     This file demonstrates user authentication with AWS Cognito and AWS Amplify. It provides a CloudFormation template to create the Cognito User Pool and example React components for sign-up and sign-in.
+  
+  ## Overview
+  
+  1. This portion uses:
+  
+  *   **AWS Cognito:** For user management and authentication.
+  *   **AWS Amplify:** To simplify the integration of Cognito with the application.
+  
+  
+  2.  **Deploy the Cognito User Pool (CloudFormation):**
+  
+      *   Open `cognito-user-pool.yaml`.  This template defines the Cognito User Pool and Client. It includes default configurations for password policies, MFA, and email/SMS verification messages.  **You should review and customize these settings according to your application's requirements.** Refer to the AWS documentation for `AWS::Cognito::UserPool` and `AWS::Cognito::UserPoolClient` for all available options.
+      *   Deploy the `cognito-user-pool.yaml` template using the AWS CLI or the CloudFormation console.  This will create your Cognito User Pool.
+  
+          *   **AWS CLI:**
+              ```bash
+              aws cloudformation create-stack --stack-name MyCognitoUserPoolStack \
+                  --template-body file://cognito-user-pool.yaml \
+                  --capabilities CAPABILITY_IAM
+              ```
+  
+          *   **AWS Console:**  Go to the CloudFormation service, create a new stack, upload the template, and acknowledge the IAM capabilities.
+  
+      *   **Crucially:** After the stack is created, go to the "Outputs" tab of your CloudFormation stack in the AWS console.  **Copy the `UserPoolId` and `UserPoolClientId` values.** You'll need these in the next step.
+  
+  3.  **Set up Amplify in your project:**
+  
+      *   Navigate to your project directory (where your React app is).
+      *   If you haven't already, run:
+          ```bash
+          amplify configure
+          ```
+          Follow the prompts to set up Amplify with your AWS credentials.
+      *   Initialize Amplify in your project:
+          ```bash
+          amplify init
+          ```
+      *   Add the authentication module (using Cognito):
+          ```bash
+          amplify add auth
+          ```
+          Choose the default configuration (or customize if needed).
+      *   Deploy the Amplify configuration (this connects your app to the Cognito resources):
+          ```bash
+          amplify push
+          ```
+  
+  4.  **Update `aws-exports.js`:**
+  
+      *   Open the `aws-exports.js` file in your React project.  This file (which Amplify generates) contains the configuration for your AWS services.
+      *   **You MUST manually update the `aws_user_pools_id` and `aws_user_pools_web_client_id` values in this file with the `UserPoolId` and `UserPoolClientId` that you copied from the CloudFormation stack outputs in step 3.**  The other values in the file (region, etc.) should already be populated correctly by Amplify.
+  
+          ```javascript
+          const awsmobile = {
+              "aws_project_region": "YOUR_AWS_REGION",  // Your AWS region
+              "aws_cognito_identity_pool_id": "YOUR_COGNITO_IDENTITY_POOL_ID", // If using an identity pool (not required here)
+              "aws_cognito_region": "YOUR_AWS_REGION", // Your AWS region
+              "aws_user_pools_id": "THE_USER_POOL_ID", // From CloudFormation outputs
+              "aws_user_pools_web_client_id": "THE_USER_POOL_CLIENT_ID", // From CloudFormation outputs
+              "oauth": {} // If using OAuth
+          };
+  
+          export default awsmobile;
+          ```
+  
+  5.  **Install Amplify Libraries:**
+  
+      ```bash
+      npm install aws-amplify @aws-amplify/auth  # or yarn add aws-amplify @aws-amplify/auth
+      ```
+  
+  6.  **Use the Authentication Components: (Just to get you guys started)**
+  
+      *   The `SignUp.js` and `SignIn.js` files provide example React components for user sign-up and sign-in
