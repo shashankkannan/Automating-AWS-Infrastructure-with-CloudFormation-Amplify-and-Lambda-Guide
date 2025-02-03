@@ -59,3 +59,95 @@
   *   **HTTPS:** CloudFront is configured to redirect all traffic to HTTPS.
   *   **Cost:** Be aware of the costs associated with the AWS services used (S3, CloudFront, Route 53).
   *   **Customization:**  This template provides a basic setup. You can customize it further to meet your specific requirements (e.g., adding more cache behaviors, configuring error pages, etc.).
+
+**2. serverless-api.yaml**
+  
+  This repository provides a CloudFormation template (`serverless-api.yaml`) for deploying a serverless API using AWS Lambda and API Gateway.
+
+## Overview
+
+This template automates the creation and configuration of the following AWS resources:
+
+*   **Lambda Function:**  A serverless function that contains your backend logic.
+*   **IAM Role:** An IAM role with permissions for the Lambda function to execute (including logging to CloudWatch).
+*   **API Gateway Rest API:** Creates the API endpoint.
+*   **API Gateway Resource and Method:** Defines the `/my-resource` path and the GET method for the API.
+*   **S3 Bucket:** Stores the Lambda function's deployment code.
+
+## Getting Started
+
+1.  **Prepare and Deploy Lambda Function Code (CRUCIAL STEP):**
+
+    *   **Write your Lambda function code:** Create a file named `index.js` (or your preferred handler file).  Here's a simple example:
+
+        ```javascript
+        exports.handler = async (event) => {
+            const response = {
+                statusCode: 200,
+                body: JSON.stringify('Hello from Lambda!'),
+            };
+            return response;
+        };
+        ```
+
+    *   **Create a zip archive:** Package your Lambda function code into a zip file. In your terminal:
+
+        ```bash
+        zip my-function.zip index.js  # Or whatever your handler file is named
+        ```
+
+    *   **Create an S3 bucket (or use an existing one):** Go to the S3 service in the AWS Management Console. Create a *private* bucket (e.g., `my-lambda-code-bucket-[your-id]-[region]`).  *Important:* The CloudFormation template will create a bucket if you don't already have one, but it's best to create it yourself and then reference it in the template.
+
+    *   **Upload the zip file:** Upload `my-function.zip` to the `code/` folder in your S3 bucket.  If the `code` folder doesn't exist, create it. The full S3 path will be something like `s3://my-lambda-code-bucket-[your-id]-[region]/code/my-function.zip`.
+
+2.  **Deploy the CloudFormation Template:**
+
+    *   Open `serverless-api.yaml` and make the following changes:
+        *   If you *created* your S3 bucket manually (recommended), find the `LambdaCodeBucket` resource and replace the generated bucket name with the name of your S3 bucket.
+        *   No other changes should be required if you followed the instructions above.
+
+    *   Using the AWS CLI (recommended):
+
+        ```bash
+        aws cloudformation create-stack --stack-name MyServerlessAPIStack \
+            --template-body file://serverless-api.yaml \
+            --capabilities CAPABILITY_IAM  # VERY IMPORTANT: Required for IAM resources
+        ```
+
+        *   **Important:** The `--capabilities CAPABILITY_IAM` flag is *essential*. CloudFormation needs your explicit confirmation to create IAM roles and policies.  If you forget this, the stack creation will fail.
+
+    *   Using the AWS Console:
+        *   Go to the CloudFormation service in the AWS Management Console.
+        *   Click "Create stack."
+        *   Upload `serverless-api.yaml`.
+        *   On the "Capabilities" page, check the box that acknowledges that the template might create IAM resources.
+
+3.  **Retrieve the API Endpoint:**
+
+    *   After the stack creation is complete, you can retrieve the API endpoint from the CloudFormation outputs.
+
+    *   Using the AWS CLI:
+
+        ```bash
+        aws cloudformation describe-stacks --stack-name MyServerlessAPIStack \
+            --query 'Stacks[0].Outputs[?OutputKey==`ApiEndpoint`].OutputValue' --output text
+        ```
+
+    *   Or you can find it in the CloudFormation console in the "Outputs" tab of your stack.
+
+4.  **Test the API:**
+
+    *   Use `curl`, Postman, or any HTTP client to send a GET request to the retrieved API endpoint:
+
+        ```bash
+        curl [API_ENDPOINT]
+        ```
+
+## Important Considerations
+
+*   **Authorization:** The `AuthorizationType` is set to `NONE`.  **This is NOT secure for production APIs.**  Implement an appropriate authorization method (API keys, IAM authorization, Cognito, etc.).
+*   **Error Handling:** The Lambda function and API Gateway configuration are basic.  Implement robust error handling and logging.
+*   **Environment Variables:** The template shows how to use environment variables for your Lambda function's configuration.  This is a best practice.
+*   **CORS:** If your frontend is on a different domain, you'll need to configure CORS in API Gateway.
+*   **Resource ARNs:** The IAM policy for CloudWatch Logs uses a wildcard (`*`) for resources.  For production, it's best practice to use more specific ARNs to restrict permissions.  The same applies to other permissions your Lambda function might need.
+
