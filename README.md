@@ -170,18 +170,7 @@
   
   ## Getting Started
   
-  1.  **Prerequisites:**
-      *   AWS account.
-      *   AWS CLI installed and configured.
-      *   Familiarity with CloudFormation, SQS, Lambda, SNS, Step Functions.
-  
-  2.  **Clone Repository:**
-      ```bash
-      git clone [your-repo-url]
-      cd your-repo-directory
-      ```
-  
-  3.  **Prepare Lambda Code (CRUCIAL):**
+  1.  **Prepare Lambda Code (CRUCIAL):**
   
       *   **`process-order-function.zip` (`index.js`):**
   
@@ -227,12 +216,12 @@
           zip send-notification-function.zip index.js
           ```
   
-  4.  **Create S3 Bucket & Upload (or use existing):**
+  2.  **Create S3 Bucket & Upload (or use existing):**
   
       *   Create a *private* S3 bucket (e.g., `my-lambda-code-bucket-[your-id]-[region]`).  It's *highly* recommended to do this manually *before* deploying the template. This gives you more control over the bucket name.
       *   Upload `process-order-function.zip` and `send-notification-function.zip` to the bucket.
   
-  5.  **Deploy CloudFormation Template:**
+  3.  **Deploy CloudFormation Template:**
   
       *   Open `order-processing.yaml`.
       *   **Important:** If you created the S3 bucket *manually* in the previous step, you *must* update the `LambdaCodeBucket` resource's `BucketName` property with your bucket's name.  If you skip this step, the template will create a bucket for you, but you'll then have to find its name in the CloudFormation outputs and upload the zip files manually.
@@ -244,7 +233,7 @@
         ```
     *   **Console:** Upload the template and acknowledge IAM capabilities.
 
-  6.  **Send a Test Message to the SQS Queue:**
+  4.  **Send a Test Message to the SQS Queue:**
   
       *   After the stack creation is complete, you can send a message to the SQS queue to trigger the workflow.  You can do this through the AWS console, AWS CLI, or SDKs. Example using the AWS CLI:
   
@@ -253,7 +242,7 @@
           ```
           Replace `[QUEUE_URL]` with the actual URL of your SQS queue (you can find this in the CloudFormation stack's Outputs). The message body is a JSON string representing the order data.
   
-  7.  **Monitor the Workflow:**
+  5.  **Monitor the Workflow:**
   
       *   You can monitor the execution of your Step Function state machine in the AWS Step Functions console.  You can see the progress of each step, the input and output data, and any errors that may have occurred.  You can also monitor the SQS queue to see the messages being received and processed.  Check CloudWatch Logs for your Lambda functions for any errors.
   
