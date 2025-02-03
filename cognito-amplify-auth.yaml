@@ -1,0 +1,30 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  MyUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: MyUserPool # Choose a globally unique name
+      PasswordPolicy: # Customize as needed
+        MinimumLength: 8
+        RequireLowercase: true
+        RequireUppercase: true
+        RequireNumbers: true
+        RequireSymbols: true
+      MfaConfiguration: OFF # Or 'OPTIONAL' or 'REQUIRED'
+      EmailVerificationMessage: "Your verification code is {####}"
+      EmailSubject: "Verify your email address"
+      SmsVerificationMessage: "Your verification code is {####}"
+      # ... other User Pool configurations (see AWS::Cognito::UserPool docs)
+  MyUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref MyUserPool
+      ClientName: MyUserPoolClient # Choose a client name
+      # ... other client configurations (see AWS::Cognito::UserPoolClient docs)
+Outputs:
+  UserPoolId:
+    Value: !Ref MyUserPool
+    Description: ID of the Cognito User Pool
+  UserPoolClientId:
+    Value: !Ref MyUserPoolClient
+    Description: ID of the Cognito User Pool Client
