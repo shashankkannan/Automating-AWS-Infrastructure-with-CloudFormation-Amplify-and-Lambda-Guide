@@ -17,11 +17,11 @@
       *   A domain name registered with Route 53 or another DNS provider.
       *   Basic familiarity with AWS CloudFormation.
   
-  2.  **Clone the Repository:**
-      ```bash
-      git clone [https://github.com/your-username/your-repo-name.git](https://www.google.com/search?q=https://github.com/your-username/your-repo-name.git)
-      cd your-repo-name
-      ```
+  2.   **Clone the Repository:**
+    ```bash
+    git clone [https://github.com/shashankkannan/Automating-AWS-Infrastructure-with-CloudFormation-Amplify-and-Lambda-Guide.git](https://www.google.com/search?q=https://github.com/shashankkannan/Automating-AWS-Infrastructure-with-CloudFormation-Amplify-and-Lambda-Guide.git)
+    cd Automating-AWS-Infrastructure-with-CloudFormation-Amplify-and-Lambda-Guide
+    ```
   
   3.  **Customize the Template:**  Open `static-website-cloudformation.yaml` and make the following changes:
   
