@@ -74,7 +74,7 @@
   *   **IAM Role:** An IAM role with permissions for the Lambda function to execute (including logging to CloudWatch).
   *   **API Gateway Rest API:** Creates the API endpoint.
   *   **API Gateway Resource and Method:** Defines the `/my-resource` path and the GET method for the API.
-  *   **S3 Bucket:** Stores the Lambda function's deployment code.
+  *   **S3 Bucket:** Stores the Lambda function's deployment code. (Use if code > 10mb)
   
   ## Getting Started
   
@@ -98,7 +98,7 @@
           zip my-function.zip index.js  # Or whatever your handler file is named
           ```
   
-      *   **Create an S3 bucket (or use an existing one):** Go to the S3 service in the AWS Management Console. Create a *private* bucket (e.g., `my-lambda-code-bucket-[your-id]-[region]`).  *Important:* The CloudFormation template will create a bucket if you don't already have one, but it's best to create it yourself and then reference it in the template.
+      *   **Create an S3 bucket (or use an existing one):** Go to the S3 service in the AWS Management Console. Create a *private* bucket (e.g., `my-lambda-code-bucket-[your-id]-[region]`).  *Important:* The CloudFormation template will create a bucket if you don't already have one, but it's best to create it yourself and then reference it in the template. (Use if code > 10mb)
   
       *   **Upload the zip file:** Upload `my-function.zip` to the `code/` folder in your S3 bucket.  If the `code` folder doesn't exist, create it. The full S3 path will be something like `s3://my-lambda-code-bucket-[your-id]-[region]/code/my-function.zip`.
   
